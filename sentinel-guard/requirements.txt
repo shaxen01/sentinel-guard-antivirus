@@ -1,0 +1,19 @@
+# Sentinel Guard — Dependencies
+# Core engine uses only standard library (no external deps required for basic operation)
+# Optional dependencies for enhanced features:
+
+# Real-time monitoring with inotify (Linux only, improves monitor performance)
+# pyinotify==0.9.6; sys.platform == "linux"
+
+# YARA rule support (optional, for advanced pattern matching)
+# yara-python==4.3.1
+
+# Web API for remote management (optional)
+# flask==3.0.0
+# flask-cors==4.0.0
+
+# Rich terminal output (optional, for nicer CLI)
+# rich==13.7.0
+
+# Note: The core engine runs with ZERO external dependencies.
+# All optional packages can be installed via: pip install -r requirements.txt
