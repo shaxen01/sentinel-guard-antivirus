@@ -1,0 +1,919 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>SENTINEL — Antivirüs</title>
+<style>
+:root {
+  --bg: #0a0e17;
+  --bg2: #0f1623;
+  --panel: #131c2e;
+  --panel2: #1a2640;
+  --accent: #00e5ff;
+  --accent2: #00b8d4;
+  --accent3: #7c4dff;
+  --danger: #ff3b5c;
+  --safe: #00e676;
+  --warn: #ffc400;
+  --skin: #d4a373;
+  --skin-dark: #c08552;
+  --text: #e8eef7;
+  --text-dim: #7a8ba0;
+  --border: #1e2d45;
+}
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+body {
+  background: var(--bg); color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  min-height: 100vh; overflow-x: hidden; user-select: none; -webkit-user-select: none;
+}
+body::before {
+  content:''; position:fixed; top:0; left:0; right:0; bottom:0;
+  background-image:
+    linear-gradient(rgba(0,229,255,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,229,255,0.025) 1px, transparent 1px);
+  background-size: 32px 32px; pointer-events:none; z-index:0;
+}
+#bgParticles { position:fixed; top:0; left:0; width:100%; height:100%; z-index:0; pointer-events:none; }
+#app { position:relative; z-index:1; max-width:480px; margin:0 auto; min-height:100vh; padding:20px 16px 40px; }
+
+/* HEADER */
+.header { text-align:center; margin-bottom:8px; }
+.logo { font-size:15px; font-weight:800; letter-spacing:5px; color:var(--accent); text-shadow:0 0 12px rgba(0,229,255,0.5); }
+.logo .strike { color:var(--danger); text-shadow:0 0 10px rgba(255,59,92,0.4); }
+.tagline { font-size:10px; color:var(--text-dim); letter-spacing:2px; margin-top:4px; }
+.status-badge { display:flex; align-items:center; justify-content:center; gap:6px; margin-top:12px; font-size:11px; color:var(--safe); letter-spacing:1px; }
+.status-dot { width:8px; height:8px; border-radius:50%; background:var(--safe); box-shadow:0 0 8px var(--safe); animation:pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+/* SECURITY SCORE */
+.score-meter { margin:16px auto 0; width:200px; text-align:center; }
+.score-ring { position:relative; width:100px; height:100px; margin:0 auto; }
+.score-ring svg { transform:rotate(-90deg); }
+.score-ring-bg { fill:none; stroke:var(--panel); stroke-width:8; }
+.score-ring-fill { fill:none; stroke:var(--accent); stroke-width:8; stroke-linecap:round; transition:stroke-dashoffset 0.5s; filter:drop-shadow(0 0 4px rgba(0,229,255,0.5)); }
+.score-val { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-size:28px; font-weight:800; color:var(--accent); }
+.score-label { font-size:10px; color:var(--text-dim); letter-spacing:1px; margin-top:4px; }
+
+/* AVATAR */
+.avatar-container { display:flex; justify-content:center; align-items:center; height:260px; margin:16px 0; position:relative; }
+.avatar-wrapper { position:relative; width:180px; height:180px; }
+.avatar-svg { width:100%; height:100%; }
+
+/* SPEECH BUBBLE */
+.speech-bubble {
+  position:absolute; top:-45px; left:50%; transform:translateX(-50%);
+  background:var(--panel2); border:1px solid var(--warn); border-radius:12px;
+  padding:8px 14px; font-size:11px; font-weight:600; color:var(--warn);
+  white-space:nowrap; opacity:0; pointer-events:none; transition:opacity 0.3s; z-index:5;
+}
+.speech-bubble.show { opacity:1; }
+.speech-bubble::after {
+  content:''; position:absolute; bottom:-8px; left:50%; transform:translateX(-50%);
+  border:8px solid transparent; border-top-color:var(--panel2);
+}
+
+/* HUMAN FACE ANIMATIONS */
+@keyframes breathe { 0%,100%{transform:scaleY(1) scaleX(1)} 50%{transform:scaleY(1.01) scaleX(0.99)} }
+.body-group { animation:breathe 3.5s infinite ease-in-out; transform-origin:100px 150px; }
+
+@keyframes head-bob {
+  0%,100%{transform:translate(0,0) rotate(0deg)}
+  20%{transform:translate(-2px,1px) rotate(-1.5deg)}
+  40%{transform:translate(0,0) rotate(0.5deg)}
+  60%{transform:translate(2px,-1px) rotate(1.5deg)}
+  80%{transform:translate(0,1px) rotate(-0.5deg)}
+}
+.head-group { animation:head-bob 5s infinite ease-in-out; transform-origin:100px 70px; }
+
+@keyframes eye-dart {
+  0%,100%{transform:translate(0,0)}
+  8%{transform:translate(-4px,0)} 12%{transform:translate(-4px,-1px)} 16%{transform:translate(-4px,0)}
+  22%{transform:translate(0,0)} 35%{transform:translate(0,0)}
+  42%{transform:translate(5px,0)} 48%{transform:translate(5px,-1px)} 53%{transform:translate(5px,1px)}
+  58%{transform:translate(3px,0)} 65%{transform:translate(0,0)}
+  78%{transform:translate(-2px,0)} 82%{transform:translate(-2px,0)} 85%{transform:translate(0,0)}
+}
+.eye-dart { animation:eye-dart 4s infinite ease-in-out; }
+
+@keyframes blink { 0%,92%,100%{transform:scaleY(1)} 95%{transform:scaleY(0.1)} 97%{transform:scaleY(0.1)} }
+.eyelid { animation:blink 5s infinite; transform-origin:center top; transform-box:fill-box; }
+
+@keyframes brow-suspicious {
+  0%,100%{transform:translateY(0) rotate(0)}
+  15%{transform:translateY(-2px) rotate(-3deg)} 25%{transform:translateY(-2px) rotate(-3deg)}
+  35%{transform:translateY(0) rotate(0)}
+  70%{transform:translateY(-1px) rotate(2deg)} 80%{transform:translateY(-1px) rotate(2deg)}
+  88%{transform:translateY(0) rotate(0)}
+}
+.brow-left { animation:brow-suspicious 6s infinite ease-in-out; transform-origin:right center; transform-box:fill-box; }
+.brow-right { animation:brow-suspicious 6s infinite ease-in-out; transform-origin:left center; transform-box:fill-box; animation-delay:0.3s; }
+
+@keyframes look-side {
+  0%,100%{transform:rotateY(0deg) translateX(0)}
+  20%{transform:rotateY(-8deg) translateX(-3px)} 30%{transform:rotateY(-12deg) translateX(-5px)}
+  40%{transform:rotateY(-8deg) translateX(-3px)} 50%{transform:rotateY(0deg) translateX(0)}
+  65%{transform:rotateY(8deg) translateX(3px)} 75%{transform:rotateY(12deg) translateX(5px)}
+  85%{transform:rotateY(8deg) translateX(3px)} 95%{transform:rotateY(0deg) translateX(0)}
+}
+.face-3d { animation:look-side 8s infinite ease-in-out; transform-style:preserve-3d; transform-origin:100px 80px; }
+
+/* === SHAKE: HEAD SHAKE (not flip!) === */
+@keyframes dizzy-head-shake {
+  0%   { transform: rotate(0deg) translateX(0); }
+  8%   { transform: rotate(-18deg) translateX(-4px); }
+  16%  { transform: rotate(18deg) translateX(4px); }
+  24%  { transform: rotate(-16deg) translateX(-3px); }
+  32%  { transform: rotate(16deg) translateX(3px); }
+  40%  { transform: rotate(-13deg) translateX(-2px); }
+  48%  { transform: rotate(13deg) translateX(2px); }
+  56%  { transform: rotate(-9deg) translateX(-1px); }
+  64%  { transform: rotate(9deg) translateX(1px); }
+  72%  { transform: rotate(-6deg); }
+  80%  { transform: rotate(5deg); }
+  88%  { transform: rotate(-3deg); }
+  94%  { transform: rotate(1deg); }
+  100% { transform: rotate(0deg); }
+}
+.avatar-wrapper.shaking .head-group {
+  animation: dizzy-head-shake 2.2s ease-in-out;
+  transform-origin: 100px 65px;
+}
+.avatar-wrapper.shaking .eye-dart,
+.avatar-wrapper.shaking .brow-left,
+.avatar-wrapper.shaking .brow-right,
+.avatar-wrapper.shaking .face-3d,
+.avatar-wrapper.shaking .body-group,
+.avatar-wrapper.shaking .eyelid {
+  animation: none !important;
+}
+/* Dizzy spiral eyes */
+.dizzy-spiral { opacity:0; }
+.avatar-wrapper.shaking .dizzy-spiral { opacity:1; animation:spiral-spin 0.4s linear infinite; }
+.avatar-wrapper.shaking .normal-eyes { opacity:0; }
+@keyframes spiral-spin { to{transform:rotate(360deg)} }
+/* Wavy mouth */
+@keyframes dizzy-mouth {
+  0%,100% { transform: rotate(0); }
+  25% { transform: rotate(-3deg) translateY(1px); }
+  50% { transform: rotate(3deg) translateY(-1px); }
+  75% { transform: rotate(-2deg) translateY(1px); }
+}
+.avatar-wrapper.shaking .mouth-path { animation:dizzy-mouth 0.4s infinite; }
+/* Sweat drops */
+.avatar-wrapper.shaking .sweat-drop { animation:sweat-fall 0.8s infinite; }
+@keyframes sweat-fall {
+  0%{transform:translateY(0);opacity:0} 20%{opacity:1} 100%{transform:translateY(30px);opacity:0}
+}
+/* Slightly tilt whole avatar during shake (not flip) */
+.avatar-wrapper.shaking .avatar-svg {
+  transform: rotate(2deg);
+  transition: transform 0.3s;
+}
+
+/* HAPPY mood (after clean) */
+@keyframes happy-bounce {
+  0%,100%{transform:translateY(0)} 50%{transform:translateY(-4px)}
+}
+.avatar-wrapper.happy .avatar-svg { animation:happy-bounce 1.5s infinite ease-in-out; }
+.avatar-wrapper.happy .normal-eyes { opacity:1; }
+.avatar-wrapper.happy .dizzy-spiral { opacity:0; }
+.avatar-wrapper.happy .mouth-path { d:path('M78 122 Q100 135 122 122') !important; }
+
+.shake-hint {
+  position:absolute; bottom:-28px; left:50%; transform:translateX(-50%);
+  font-size:10px; color:var(--text-dim); opacity:0.4; letter-spacing:1px; white-space:nowrap; transition:all 0.3s;
+}
+
+/* SCAN BUTTON */
+.scan-btn {
+  display:block; width:100%; max-width:340px; margin:16px auto 0; padding:18px;
+  background:linear-gradient(135deg,var(--accent),var(--accent2)); border:none; border-radius:14px;
+  color:#001824; font-size:17px; font-weight:800; letter-spacing:2px; cursor:pointer;
+  box-shadow:0 4px 24px rgba(0,229,255,0.35); transition:transform 0.15s, box-shadow 0.15s;
+}
+.scan-btn:active { transform:scale(0.97); box-shadow:0 2px 10px rgba(0,229,255,0.2); }
+.scan-btn:disabled { opacity:0.4; cursor:default; }
+
+/* STATS */
+.stats-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-top:24px; }
+.stat-card { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:14px 8px; text-align:center; }
+.stat-icon { font-size:18px; margin-bottom:4px; }
+.stat-value { font-size:18px; font-weight:800; }
+.stat-label { font-size:9px; color:var(--text-dim); letter-spacing:1px; margin-top:2px; }
+
+/* PROTECTION TOGGLE */
+.protect-toggle { display:flex; align-items:center; justify-content:space-between; background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:14px 16px; margin-top:16px; }
+.toggle-label { font-size:13px; font-weight:600; }
+.toggle-desc { font-size:10px; color:var(--text-dim); margin-top:2px; }
+.toggle-switch { width:48px; height:26px; border-radius:13px; background:var(--safe); position:relative; cursor:pointer; transition:background 0.3s; box-shadow:0 0 8px rgba(0,230,118,0.3); }
+.toggle-switch::after { content:''; position:absolute; top:3px; left:25px; width:20px; height:20px; border-radius:50%; background:#fff; transition:left 0.3s; box-shadow:0 1px 3px rgba(0,0,0,0.3); }
+.toggle-switch.off { background:var(--text-dim); box-shadow:none; }
+.toggle-switch.off::after { left:3px; }
+
+/* FIREWALL VISUALIZATION */
+.firewall-section { margin-top:16px; background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:14px; }
+.firewall-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+.firewall-title { font-size:12px; font-weight:700; letter-spacing:1px; }
+.firewall-bars { display:flex; gap:3px; height:40px; align-items:flex-end; }
+.firewall-bar { flex:1; background:var(--border); border-radius:2px; transition:all 0.3s; }
+.firewall-bar.active { background:var(--accent); box-shadow:0 0 4px rgba(0,229,255,0.4); }
+.firewall-bar.blocked { background:var(--danger); }
+
+/* QUICK ACTIONS */
+.quick-actions { display:flex; gap:10px; margin-top:16px; }
+.quick-btn { flex:1; padding:12px; background:var(--panel); border:1px solid var(--border); border-radius:10px; color:var(--text-dim); font-size:11px; font-weight:600; letter-spacing:1px; text-align:center; }
+.quick-btn.active { border-color:var(--accent); color:var(--accent); background:rgba(0,229,255,0.05); }
+
+/* NAV TABS */
+.nav-tabs { display:flex; gap:8px; margin-top:20px; }
+.nav-tab { flex:1; padding:10px; background:var(--panel); border:1px solid var(--border); border-radius:10px; color:var(--text-dim); font-size:11px; font-weight:600; letter-spacing:1px; text-align:center; cursor:pointer; }
+.nav-tab.active { border-color:var(--accent); color:var(--accent); background:rgba(0,229,255,0.05); }
+
+/* SCAN HISTORY */
+#historyView, #quarantineView, #settingsView { display:none; margin-top:16px; }
+.history-item, .quarantine-item { background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:12px; margin-bottom:8px; }
+.history-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; }
+.history-date { font-size:11px; font-weight:600; color:var(--accent); }
+.history-status { font-size:10px; padding:2px 8px; border-radius:6px; font-weight:600; }
+.history-status.safe { background:rgba(0,230,118,0.15); color:var(--safe); }
+.history-status.danger { background:rgba(255,59,92,0.15); color:var(--danger); }
+.history-info { font-size:10px; color:var(--text-dim); display:flex; gap:12px; }
+.history-empty { text-align:center; color:var(--text-dim); font-size:12px; padding:20px; }
+
+/* SETTINGS */
+.setting-row { display:flex; align-items:center; justify-content:space-between; background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:14px 16px; margin-bottom:8px; }
+.setting-label { font-size:13px; font-weight:600; }
+.setting-desc { font-size:10px; color:var(--text-dim); margin-top:2px; }
+.mini-toggle { width:40px; height:22px; border-radius:11px; background:var(--safe); position:relative; cursor:pointer; transition:background 0.3s; }
+.mini-toggle::after { content:''; position:absolute; top:3px; left:21px; width:16px; height:16px; border-radius:50%; background:#fff; transition:left 0.3s; }
+.mini-toggle.off { background:var(--text-dim); }
+.mini-toggle.off::after { left:3px; }
+
+/* SCAN SCREEN */
+#scanScreen { display:none; }
+.scan-header { text-align:center; margin-bottom:16px; }
+.scan-title { font-size:20px; font-weight:800; letter-spacing:1px; }
+.scan-subtitle { font-size:11px; color:var(--text-dim); margin-top:4px; }
+.radar { width:60px; height:60px; margin:0 auto 12px; position:relative; border-radius:50%; background:var(--panel); border:2px solid var(--border); overflow:hidden; }
+.radar::before { content:''; position:absolute; top:0; left:50%; width:50%; height:100%; background:linear-gradient(180deg,rgba(0,229,255,0.3),transparent); transform-origin:left bottom; animation:radar-sweep 2s linear infinite; border-radius:0 100% 0 0; }
+@keyframes radar-sweep { to{transform:rotate(360deg)} }
+.radar-dot { position:absolute; width:6px; height:6px; border-radius:50%; background:var(--accent); box-shadow:0 0 4px var(--accent); }
+.progress-container { margin:16px 0; }
+.progress-bar-bg { width:100%; height:8px; background:var(--panel); border-radius:4px; overflow:hidden; }
+.progress-bar-fill { height:100%; background:linear-gradient(90deg,var(--accent),var(--accent2)); border-radius:4px; width:0%; transition:width 0.3s; box-shadow:0 0 10px rgba(0,229,255,0.5); }
+.progress-text { display:flex; justify-content:space-between; margin-top:6px; font-size:11px; color:var(--text-dim); }
+.scan-log { background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:10px 12px; height:80px; overflow-y:auto; font-family:'Courier New',monospace; font-size:10px; color:var(--text-dim); margin-bottom:12px; }
+.scan-log .log-line { margin-bottom:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.scan-log .log-warn { color:var(--warn); } .scan-log .log-danger { color:var(--danger); } .scan-log .log-ok { color:var(--safe); }
+
+/* GAME */
+.game-section { margin-top:8px; }
+.game-title { text-align:center; font-size:14px; font-weight:700; color:var(--accent); letter-spacing:1px; margin-bottom:4px; }
+.game-hint { text-align:center; font-size:10px; color:var(--text-dim); margin-bottom:8px; }
+.game-hud { display:flex; justify-content:space-around; margin-bottom:8px; padding:0 4px; font-size:12px; font-weight:700; }
+.hud-item { display:flex; align-items:center; gap:4px; }
+.hud-score { color:var(--accent); } .hud-lives { color:var(--danger); } .hud-wave { color:var(--accent3); } .hud-combo { color:var(--warn); }
+#gameCanvas { width:100%; height:260px; background:radial-gradient(ellipse at center,#0a1525,#050810); border:1px solid var(--border); border-radius:12px; display:block; touch-action:none; cursor:crosshair; }
+
+/* GAME OVER overlay */
+.game-over-overlay { display:none; position:absolute; background:rgba(5,8,16,0.85); border-radius:12px; padding:20px; text-align:center; }
+.game-over-overlay.show { display:block; }
+
+/* RESULTS */
+#resultsScreen { display:none; text-align:center; }
+.results-icon { font-size:64px; margin:20px 0 8px; }
+.results-title { font-size:22px; font-weight:800; margin-bottom:6px; }
+.results-summary { font-size:13px; color:var(--text-dim); margin-bottom:20px; line-height:1.7; white-space:pre-line; }
+.results-detail { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:14px; margin-bottom:20px; text-align:left; max-height:200px; overflow-y:auto; }
+.threat-item { display:flex; align-items:center; gap:8px; padding:10px 0; border-bottom:1px solid var(--border); font-size:12px; }
+.threat-item:last-child { border-bottom:none; }
+.threat-icon { width:32px; height:32px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0; }
+.threat-icon.high { background:rgba(255,59,92,0.15); color:var(--danger); }
+.threat-icon.med { background:rgba(255,196,0,0.15); color:var(--warn); }
+.threat-icon.low { background:rgba(0,229,255,0.15); color:var(--accent); }
+.threat-name { font-weight:600; }
+.threat-path { font-size:10px; color:var(--text-dim); }
+.threat-action { margin-left:auto; font-size:10px; color:var(--danger); font-weight:600; }
+.results-action { font-size:15px; font-weight:700; margin-bottom:16px; }
+.btn-row { display:flex; gap:12px; margin-bottom:20px; justify-content:center; }
+.btn-yes, .btn-no { flex:1; max-width:160px; padding:16px; border:none; border-radius:12px; font-size:16px; font-weight:800; letter-spacing:1px; cursor:pointer; transition:transform 0.15s; }
+.btn-yes { background:linear-gradient(135deg,var(--danger),#d32f50); color:#fff; box-shadow:0 4px 15px rgba(255,59,92,0.3); }
+.btn-no { background:var(--panel); border:1px solid var(--border); color:var(--text); }
+.btn-yes:active, .btn-no:active { transform:scale(0.96); }
+.download-btn { width:100%; max-width:340px; margin:0 auto; padding:12px; background:transparent; border:2px solid var(--accent); border-radius:10px; color:var(--accent); font-size:13px; font-weight:900; letter-spacing:2.5px; cursor:pointer; display:block; transition:all 0.2s; }
+.download-btn:active { transform:scale(0.97); background:rgba(0,229,255,0.1); }
+
+/* CLEANING */
+.cleaning-overlay { display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(10,14,23,0.96); z-index:100; justify-content:center; align-items:center; flex-direction:column; }
+.cleaning-overlay.show { display:flex; }
+.cleaning-spinner { width:60px; height:60px; border:4px solid var(--border); border-top-color:var(--accent); border-radius:50%; animation:spin 0.8s linear infinite; margin-bottom:16px; }
+@keyframes spin { to{transform:rotate(360deg)} }
+.cleaning-text { font-size:14px; font-weight:700; letter-spacing:1px; color:var(--accent); }
+
+.back-btn { display:block; margin:20px auto 0; padding:10px 24px; background:transparent; border:1px solid var(--border); border-radius:10px; color:var(--text-dim); font-size:12px; font-weight:600; letter-spacing:1px; cursor:pointer; }
+.results-icon.safe { color:var(--safe); } .results-icon.danger { color:var(--danger); }
+.footer { text-align:center; margin-top:30px; font-size:9px; color:var(--text-dim); letter-spacing:1px; opacity:0.5; }
+
+/* TOAST */
+.toast { position:fixed; bottom:80px; left:50%; transform:translateX(-50%) translateY(100px); background:var(--panel2); border:1px solid var(--accent); border-radius:10px; padding:10px 20px; font-size:12px; font-weight:600; color:var(--accent); z-index:200; opacity:0; transition:all 0.3s; white-space:nowrap; }
+.toast.show { transform:translateX(-50%) translateY(0); opacity:1; }
+
+/* ACHIEVEMENT BADGE */
+.achievement-badge { display:inline-flex; align-items:center; gap:4px; background:var(--panel2); border:1px solid var(--accent3); border-radius:8px; padding:4px 8px; font-size:10px; color:var(--accent3); margin:2px; }
+.achievements-row { display:flex; flex-wrap:wrap; justify-content:center; margin-top:12px; }
+</style>
+</head>
+<body>
+
+<canvas id="bgParticles"></canvas>
+
+<div id="app">
+
+  <!-- HOME SCREEN -->
+  <div id="homeScreen">
+    <div class="header">
+      <div class="logo">SENTINEL<span class="strike">GUARD</span></div>
+      <div class="tagline">NEXT-GEN THREAT PROTECTION</div>
+      <div class="status-badge"><div class="status-dot"></div><span>KORUMA AKTİF</span></div>
+    </div>
+
+    <div class="score-meter">
+      <div class="score-ring">
+        <svg width="100" height="100" viewBox="0 0 100 100">
+          <circle class="score-ring-bg" cx="50" cy="50" r="42"/>
+          <circle class="score-ring-fill" cx="50" cy="50" r="42" stroke-dasharray="263.9" stroke-dashoffset="52.8" id="scoreRingFill"/>
+        </svg>
+        <div class="score-val" id="scoreVal">80</div>
+      </div>
+      <div class="score-label">GÜVENLİK SKORU</div>
+    </div>
+
+    <!-- Avatar -->
+    <div class="avatar-container">
+      <div class="avatar-wrapper" id="avatarWrapper">
+        <div class="speech-bubble" id="speechBubble"></div>
+        <svg class="avatar-svg" viewBox="0 0 200 220" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <radialGradient id="faceSkin" cx="50%" cy="40%" r="60%"><stop offset="0%" stop-color="#e6c099"/><stop offset="100%" stop-color="#c08552"/></radialGradient>
+            <linearGradient id="hairGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#3a2510"/><stop offset="100%" stop-color="#1a1208"/></linearGradient>
+            <linearGradient id="bodyGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#1a2640"/><stop offset="100%" stop-color="#0f1623"/></linearGradient>
+          </defs>
+
+          <g class="body-group">
+            <path d="M50 220 Q50 165 100 155 Q150 165 150 220 Z" fill="url(#bodyGrad)" stroke="#1e2d45" stroke-width="1.5"/>
+            <path d="M75 165 Q100 175 125 165 L125 160 Q100 168 75 160 Z" fill="#0f1623"/>
+            <rect x="92" y="185" width="16" height="16" rx="3" fill="none" stroke="#00e5ff" stroke-width="1.2" opacity="0.6"/>
+            <path d="M100 188 L100 197 M96 191 L104 191" stroke="#00e5ff" stroke-width="0.8" opacity="0.6"/>
+          </g>
+          <rect x="88" y="140" width="24" height="20" rx="4" fill="url(#faceSkin)" opacity="0.9"/>
+
+          <g class="head-group">
+            <g class="face-3d">
+              <ellipse cx="100" cy="65" rx="52" ry="48" fill="url(#hairGrad)"/>
+              <ellipse cx="100" cy="90" rx="44" ry="52" fill="url(#faceSkin)"/>
+              <ellipse cx="58" cy="92" rx="6" ry="9" fill="url(#faceSkin)"/>
+              <ellipse cx="142" cy="92" rx="6" ry="9" fill="url(#faceSkin)"/>
+              <ellipse cx="58" cy="92" rx="3" ry="5" fill="#a06b3e" opacity="0.5"/>
+              <ellipse cx="142" cy="92" rx="3" ry="5" fill="#a06b3e" opacity="0.5"/>
+              <path d="M58 68 Q70 38 100 35 Q130 38 142 68 Q140 50 120 45 Q100 42 80 45 Q60 50 58 68 Z" fill="url(#hairGrad)"/>
+              <path d="M65 62 Q80 52 95 55 Q85 48 72 52 Z" fill="#2a1a08" opacity="0.6"/>
+              <ellipse cx="72" cy="105" rx="10" ry="8" fill="#d97e6e" opacity="0.15"/>
+              <ellipse cx="128" cy="105" rx="10" ry="8" fill="#d97e6e" opacity="0.15"/>
+              <ellipse cx="78" cy="88" rx="14" ry="10" fill="#b8855a" opacity="0.2"/>
+              <ellipse cx="122" cy="88" rx="14" ry="10" fill="#b8855a" opacity="0.2"/>
+
+              <g class="brow-left"><path d="M64 78 Q78 73 92 76" fill="none" stroke="#3a2510" stroke-width="3.5" stroke-linecap="round"/></g>
+              <g class="brow-right"><path d="M108 76 Q122 73 136 78" fill="none" stroke="#3a2510" stroke-width="3.5" stroke-linecap="round"/></g>
+
+              <g class="normal-eyes">
+                <g class="eye-dart">
+                  <ellipse cx="78" cy="88" rx="10" ry="7" fill="#fff"/>
+                  <ellipse cx="122" cy="88" rx="10" ry="7" fill="#fff"/>
+                  <circle cx="78" cy="88" r="5.5" fill="#4a6fa5"/>
+                  <circle cx="122" cy="88" r="5.5" fill="#4a6fa5"/>
+                  <circle cx="78" cy="88" r="3" fill="#1a1a2e"/>
+                  <circle cx="122" cy="88" r="3" fill="#1a1a2e"/>
+                  <circle cx="80" cy="86" r="1.8" fill="#fff"/>
+                  <circle cx="124" cy="86" r="1.8" fill="#fff"/>
+                </g>
+                <ellipse class="eyelid" cx="78" cy="82" rx="10" ry="7" fill="url(#faceSkin)"/>
+                <ellipse class="eyelid" cx="122" cy="82" rx="10" ry="7" fill="url(#faceSkin)"/>
+              </g>
+
+              <g class="dizzy-spiral">
+                <g transform="translate(78,88)"><path d="M0,-7 A7,7 0 1,1 -0.1,-7 A5,5 0 1,0 0.1,-5 A3,3 0 1,1 -0.1,-3" fill="none" stroke="#00e5ff" stroke-width="1.5"/></g>
+                <g transform="translate(122,88)"><path d="M0,-7 A7,7 0 1,1 -0.1,-7 A5,5 0 1,0 0.1,-5 A3,3 0 1,1 -0.1,-3" fill="none" stroke="#00e5ff" stroke-width="1.5"/></g>
+              </g>
+
+              <path d="M100 95 Q97 105 100 110 Q103 105 100 95" fill="#b8855a" opacity="0.3" stroke="#a06b3e" stroke-width="1" stroke-linecap="round"/>
+              <path class="mouth-path" d="M82 125 Q100 122 118 125" fill="none" stroke="#7a3a2a" stroke-width="2.5" stroke-linecap="round"/>
+
+              <g class="sweat-drop" style="opacity:0"><ellipse cx="140" cy="78" rx="3" ry="5" fill="#5ac8fa" opacity="0.8"/></g>
+              <path d="M62 120 Q100 145 138 120 Q130 140 100 145 Q70 140 62 120 Z" fill="#000" opacity="0.08"/>
+            </g>
+          </g>
+          <ellipse cx="100" cy="218" rx="45" ry="4" fill="#00e5ff" opacity="0.06"/>
+        </svg>
+        <div class="shake-hint" id="shakeHint">psst: telefonu salla 👀</div>
+      </div>
+    </div>
+
+    <button class="scan-btn" id="startScanBtn">TARAMAYI BAŞLAT</button>
+
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-icon">🛡️</div><div class="stat-value" id="statThreats">0</div><div class="stat-label">TEHDİT</div></div>
+      <div class="stat-card"><div class="stat-icon">⚡</div><div class="stat-value">2.4ms</div><div class="stat-label">TARAMA HIZI</div></div>
+      <div class="stat-card"><div class="stat-icon">✅</div><div class="stat-value" id="statScans">0</div><div class="stat-label">TARAMA</div></div>
+    </div>
+
+    <div class="protect-toggle">
+      <div><div class="toggle-label">Gerçek Zamanlı Koruma</div><div class="toggle-desc">Otomatik tehdit engelleme</div></div>
+      <div class="toggle-switch" id="protectToggle"></div>
+    </div>
+
+    <!-- Firewall -->
+    <div class="firewall-section">
+      <div class="firewall-header"><span class="firewall-title">🔥 DUVAR (FIREWALL)</span><span style="font-size:10px;color:var(--safe)">AKTİF</span></div>
+      <div class="firewall-bars" id="firewallBars"></div>
+    </div>
+
+    <div class="quick-actions">
+      <div class="quick-btn active" id="quickScan">HIZLI TARAMA</div>
+      <div class="quick-btn" id="deepScan">DERİN TARAMA</div>
+      <div class="quick-btn" id="customScan">ÖZEL TARAMA</div>
+    </div>
+
+    <!-- Nav Tabs -->
+    <div class="nav-tabs">
+      <div class="nav-tab active" data-view="home" id="tabHome">EV</div>
+      <div class="nav-tab" data-view="history" id="tabHistory">GÜNLÜK</div>
+      <div class="nav-tab" data-view="quarantine" id="tabQuarantine">KARANTİNA</div>
+      <div class="nav-tab" data-view="settings" id="tabSettings">AYARLAR</div>
+    </div>
+
+    <div id="historyView">
+      <div id="historyList"></div>
+    </div>
+
+    <div id="quarantineView">
+      <div id="quarantineList"></div>
+    </div>
+
+    <div id="settingsView">
+      <div class="setting-row"><div><div class="setting-label">Ses Efektleri</div><div class="setting-desc">Tarama ve oyun sesleri</div></div><div class="mini-toggle" id="soundToggle"></div></div>
+      <div class="setting-row"><div><div class="setting-label">Titreşim</div><div class="setting-desc">Haptic feedback</div></div><div class="mini-toggle" id="vibrateToggle"></div></div>
+      <div class="setting-row"><div><div class="setting-label">Otomatik Tarama</div><div class="setting-desc">Günlük otomatik tarama hatırlatması</div></div><div class="mini-toggle off" id="autoScanToggle"></div></div>
+      <div class="setting-row"><div><div class="setting-label">Bulut Koruması</div><div class="setting-desc">AI tabanlı tehdit analizi</div></div><div class="mini-toggle" id="cloudToggle"></div></div>
+    </div>
+
+    <div class="footer">SENTINEL GUARD v4.3.0 • ENGINE: SENTINEL-CORE™</div>
+  </div>
+
+  <!-- SCAN SCREEN -->
+  <div id="scanScreen">
+    <div class="scan-header"><div class="scan-title">TARANIYOR…</div><div class="scan-subtitle" id="scanModeText">HIZLI TARAMA MODU</div></div>
+    <div class="radar"><div class="radar-dot" style="top:20%;left:30%"></div><div class="radar-dot" style="top:60%;left:70%"></div><div class="radar-dot" style="top:45%;left:50%"></div></div>
+    <div class="progress-container"><div class="progress-bar-bg"><div class="progress-bar-fill" id="progressFill"></div></div><div class="progress-text"><span id="progressPercent">0%</span><span id="progressFiles">0 dosya tarandı</span></div></div>
+    <div class="scan-log" id="scanLog"></div>
+    <div class="game-section">
+      <div class="game-title">🚀 UZAY SAVUNMASI</div>
+      <div class="game-hint">Gemini sür — otomatik ateş. Tehditleri yok et, skoru topla!</div>
+      <div class="game-hud">
+        <span class="hud-item hud-score">⭐ <span id="gameScore">0</span></span>
+        <span class="hud-item hud-lives">❤️ <span id="gameLives">3</span></span>
+        <span class="hud-item hud-wave">🌊 <span id="gameWave">1</span></span>
+        <span class="hud-item hud-combo">🔥 <span id="gameCombo">x1</span></span>
+      </div>
+      <canvas id="gameCanvas"></canvas>
+    </div>
+  </div>
+
+  <!-- RESULTS SCREEN -->
+  <div id="resultsScreen">
+    <div class="results-icon" id="resultsIcon">⚠️</div>
+    <div class="results-title" id="resultsTitle">TARAMA TAMAMLANDI</div>
+    <div class="results-summary" id="resultsSummary"></div>
+    <div class="results-detail" id="resultsDetail"></div>
+    <div class="results-action" id="resultsAction">TEHDİTLER TEMİZLENSİN Mİ?</div>
+    <div class="btn-row" id="btnRow"><button class="btn-yes" id="cleanYesBtn">EVET</button><button class="btn-no" id="cleanNoBtn">HAYIR</button></div>
+    <div class="achievements-row" id="achievementsRow"></div>
+    <button class="download-btn" id="downloadBtn">📥 RAPORU TXT OLARAK İNDİR</button>
+    <button class="back-btn" id="backHomeBtn">← ANA EKRANA DÖN</button>
+  </div>
+
+</div>
+
+<div class="cleaning-overlay" id="cleaningOverlay"><div class="cleaning-spinner"></div><div class="cleaning-text" id="cleaningText">TEHDİTLER TEMİZLENİYOR…</div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+// AUDIO
+let audioCtx=null, soundOn=true, vibrateOn=true;
+function initAudio(){ if(!audioCtx){try{audioCtx=new(window.AudioContext||window.webkitAudioContext)()}catch(e){}} }
+function playTone(f,d,t,v){ if(!audioCtx||!soundOn)return; const o=audioCtx.createOscillator(),g=audioCtx.createGain(); o.connect(g);g.connect(audioCtx.destination); o.type=t||'sine';o.frequency.value=f; g.gain.setValueAtTime(v||0.08,audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+(d||0.15)); o.start();o.stop(audioCtx.currentTime+(d||0.15)); }
+function sfxShoot(){playTone(880,0.08,'square',0.03);}
+function sfxHit(){playTone(220,0.12,'sawtooth',0.05);}
+function sfxExplode(){playTone(80,0.25,'sawtooth',0.08);}
+function sfxPowerup(){playTone(1200,0.15,'sine',0.05);setTimeout(()=>playTone(1600,0.12,'sine',0.05),60);}
+function sfxThreat(){playTone(150,0.4,'sawtooth',0.06);}
+function sfxClean(){playTone(523,0.12,'sine',0.05);setTimeout(()=>playTone(659,0.12,'sine',0.05),100);setTimeout(()=>playTone(784,0.15,'sine',0.05),200);}
+function vibrate(ms){ if(!vibrateOn)return; try{if(navigator.vibrate)navigator.vibrate(ms)}catch(e){} }
+
+// TOAST
+const toast=document.getElementById('toast'); let toastTimer;
+function showToast(m){toast.textContent=m;toast.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>toast.classList.remove('show'),2000);}
+
+// BG PARTICLES
+const bgCanvas=document.getElementById('bgParticles'),bgCtx=bgCanvas.getContext('2d'); let bgP=[];
+function initBgP(){bgCanvas.width=window.innerWidth;bgCanvas.height=window.innerHeight;bgP=[];for(let i=0;i<40;i++)bgP.push({x:Math.random()*bgCanvas.width,y:Math.random()*bgCanvas.height,r:Math.random()*1.5+0.5,vy:Math.random()*0.3+0.1,opacity:Math.random()*0.3+0.05});}
+function animBgP(){bgCtx.clearRect(0,0,bgCanvas.width,bgCanvas.height);bgP.forEach(p=>{p.y+=p.vy;if(p.y>bgCanvas.height)p.y=-5;bgCtx.beginPath();bgCtx.arc(p.x,p.y,p.r,0,Math.PI*2);bgCtx.fillStyle=`rgba(0,229,255,${p.opacity})`;bgCtx.fill();});requestAnimationFrame(animBgP);}
+initBgP();animBgP();window.addEventListener('resize',initBgP);
+
+// STATE
+let scanMode='HIZLI',scanProgress=0,scanInterval=null,logInterval=null,threatsFound=[],totalScans=0,securityScore=80;
+let quarantined=JSON.parse(localStorage.getItem('quarantined')||'[]');
+let scanHistory=JSON.parse(localStorage.getItem('scanHistory')||'[]');
+let gameRunning=false,gameScore=0,gameLives=3,gameWave=1,gameCombo=1,gameComboTimer=0;
+let gameEnemies=[],gameBullets=[],gameParticles=[],gamePowerups=[],bossActive=false;
+let gamePlayer={x:0,y:0,w:36,h:30,fireTimer:0,fireRate:20,hasShield:false,shieldTimer:0,hasRapid:false,rapidTimer:0,hasMulti:false,multiTimer:0};
+let gameLoopId=null,spawnTimer=0,waveTimer=0,enemySpeed=1;
+let touchX=-1,ctx,canvasW,canvasH;
+let gameAchievements=[];
+
+const THREAT_TYPES=[
+  {name:'Trojan.GenericKD.4521',severity:'high',path:'/system/cache/tmp_a4f1.dll'},
+  {name:'Adware.BrowseFox.B',severity:'med',path:'/data/app/com.browser.fox/mod.apk'},
+  {name:'PUP.Optional.Toolbar',severity:'low',path:'/downloads/setup_helper.exe'},
+  {name:'Spyware.KeyLogger.X',severity:'high',path:'/system/lib/libinput_hook.so'},
+  {name:'Trojan.Banker.Zeus.2',severity:'high',path:'/data/data/com.bank.trj/transfer.jar'},
+  {name:'Adware.PopUp.Monster',severity:'med',path:'/cache/pop_ads.html'},
+  {name:'Worm.AutoRun.VB.a',severity:'med',path:'/sdcard/usb_drive.exe'},
+  {name:'Ransom.Locky.Crypt',severity:'high',path:'/documents/.locked_files/'},
+  {name:'PUP.Optional.Bundler',severity:'low',path:'/downloads/free_software_setup.exe'},
+  {name:'Backdoor.DarkGate.3',severity:'high',path:'/system/bin/dg_handler'},
+  {name:'Spyware.Tracking.Cookie',severity:'low',path:'/browser/cookies/trk_3rdparty'},
+  {name:'Adware.NewTab.Search',severity:'med',path:'/browser/extensions/newtab/'},
+];
+const SCAN_PATHS=['/system/app/','/system/lib/','/system/bin/','/data/app/','/data/data/','/sdcard/','/downloads/','/cache/','/browser/','/documents/','/media/','/storage/'];
+const FILE_NAMES=['kernel_module.ko','libcore.so','framework.jar','system_server','config.bin','cache.db','temp.tmp','update.apk','settings.dat','metadata.xml','signature.sig','service.dex','runtime.odex','browser.cfg','history.dat','cookies.db','downloads.json','contacts.db','media.idx','storage.log'];
+
+// FIREWALL BARS
+function initFirewall(){const c=document.getElementById('firewallBars');c.innerHTML='';for(let i=0;i<20;i++){const b=document.createElement('div');b.className='firewall-bar';b.style.height=(30+Math.random()*10)+'px';c.appendChild(b);} animateFirewall();}
+let fwTimer;
+function animateFirewall(){const bars=document.querySelectorAll('.firewall-bar');bars.forEach((b,i)=>{b.classList.remove('active','blocked');if(Math.random()<0.7)b.classList.add('active');if(Math.random()<0.05)b.classList.add('blocked');});fwTimer=setTimeout(animateFirewall,800);}
+initFirewall();
+
+// SETTINGS TOGGLES
+document.getElementById('soundToggle').addEventListener('click',function(){soundOn=!soundOn;this.classList.toggle('off',!soundOn);showToast(soundOn?'Ses: AÇIK':'Ses: KAPALI');});
+document.getElementById('vibrateToggle').addEventListener('click',function(){vibrateOn=!vibrateOn;this.classList.toggle('off',!vibrateOn);showToast(vibrateOn?'Titreşim: AÇIK':'Titreşim: KAPALI');});
+document.getElementById('autoScanToggle').addEventListener('click',function(){this.classList.toggle('off');showToast(this.classList.contains('off')?'Otomatik tarama: KAPALI':'Otomatik tarama: AÇIK — Hatırlatma kuruldu');});
+document.getElementById('cloudToggle').addEventListener('click',function(){this.classList.toggle('off');showToast(this.classList.contains('off')?'Bulut koruması: KAPALI':'Bulut koruması: AÇIK');});
+
+// PROTECTION TOGGLE
+let protectionOn=true;
+document.getElementById('protectToggle').addEventListener('click',function(){protectionOn=!protectionOn;this.classList.toggle('off',!protectionOn);showToast(protectionOn?'Gerçek zamanlı koruma: AÇIK':'⚠ Gerçek zamanlı koruma: KAPALI');vibrate(100);});
+
+// NAV TABS
+document.querySelectorAll('.nav-tab').forEach(tab=>{
+  tab.addEventListener('click',function(){
+    document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+    this.classList.add('active');
+    const view=this.dataset.view;
+    ['historyView','quarantineView','settingsView'].forEach(v=>document.getElementById(v).style.display='none');
+    if(view==='history'){document.getElementById('historyView').style.display='block';renderHistory();}
+    if(view==='quarantine'){document.getElementById('quarantineView').style.display='block';renderQuarantine();}
+    if(view==='settings'){document.getElementById('settingsView').style.display='block';}
+  });
+});
+
+// SCAN MODE
+['quickScan','deepScan','customScan'].forEach(id=>{
+  document.getElementById(id).addEventListener('click',function(){
+    if(scanInterval)return;scanMode={quickScan:'HIZLI',deepScan:'DERİN',customScan:'ÖZEL'}[id];
+    document.querySelectorAll('.quick-btn').forEach(b=>b.classList.remove('active'));this.classList.add('active');
+  });
+});
+
+// SCAN LOGIC
+document.getElementById('startScanBtn').addEventListener('click',()=>{initAudio();startScan();});
+function startScan(){
+  scanProgress=0;threatsFound=[];gameScore=0;gameLives=3;gameWave=1;gameCombo=1;gameEnemies=[];gameBullets=[];gameParticles=[];gamePowerups=[];bossActive=false;gameAchievements=[];
+  homeScreen.style.display='none';scanScreen.style.display='block';resultsScreen.style.display='none';
+  scanLog.innerHTML='';progressFill.style.width='0%';progressPercent.textContent='0%';progressFiles.textContent='0 dosya tarandı';
+  scanModeText.textContent=scanMode+' TARAMA MODU';
+  addLog('SENTINEL engine başlatılıyor…');addLog('Veritabanı yükleniyor: 4.2M imza…');addLog('AI heuristik modül aktif…');addLog('Tarama başladı — '+scanMode+' mod','ok');
+  let duration=12000;if(scanMode==='DERİN')duration=20000;if(scanMode==='ÖZEL')duration=16000;
+  const totalFiles=scanMode==='DERİN'?84200:scanMode==='ÖZEL'?45000:24500;
+  const tickInc=(100/(duration/100));
+  scanInterval=setInterval(()=>{
+    scanProgress+=tickInc;if(scanProgress>100)scanProgress=100;
+    progressFill.style.width=scanProgress+'%';progressPercent.textContent=Math.floor(scanProgress)+'%';
+    progressFiles.textContent=Math.floor((scanProgress/100)*totalFiles).toLocaleString('tr-TR')+' dosya tarandı';
+    if(scanProgress>=100){clearInterval(scanInterval);clearInterval(logInterval);scanInterval=null;stopGame();addLog('Tarama tamamlandı.','ok');setTimeout(showResults,800);}
+  },100);
+  logInterval=setInterval(()=>{
+    const r=Math.random(),path=SCAN_PATHS[Math.floor(Math.random()*SCAN_PATHS.length)],file=FILE_NAMES[Math.floor(Math.random()*FILE_NAMES.length)];
+    if(r<0.07&&threatsFound.length<5){const t=THREAT_TYPES[Math.floor(Math.random()*THREAT_TYPES.length)];threatsFound.push(t);addLog('⚠ TEHDİT: '+t.name,'danger');addLog('  → '+t.path,'warn');sfxThreat();vibrate(200);}
+    else if(r<0.15)addLog('Şüpheli: '+path+file,'warn');
+    else if(r<0.3)addLog('İmza: '+path+file);
+    else addLog('Taranıyor: '+path+file+' ✓');
+    scanLog.scrollTop=scanLog.scrollHeight;
+  },400);
+  startGame();
+}
+function addLog(text,type){const l=document.createElement('div');l.className='log-line';if(type==='warn')l.classList.add('log-warn');if(type==='danger')l.classList.add('log-danger');if(type==='ok')l.classList.add('log-ok');l.textContent='› '+text;scanLog.appendChild(l);}
+
+// GAME
+function initCanvas(){const r=gameCanvas.getBoundingClientRect();gameCanvas.width=r.width*window.devicePixelRatio;gameCanvas.height=260*window.devicePixelRatio;ctx=gameCanvas.getContext('2d');ctx.scale(window.devicePixelRatio,window.devicePixelRatio);canvasW=r.width;canvasH=260;gamePlayer.x=canvasW/2-gamePlayer.w/2;gamePlayer.y=canvasH-45;}
+function startGame(){gameRunning=true;initCanvas();updateHUD();gameLoop();}
+function updateHUD(){document.getElementById('gameScore').textContent=gameScore;document.getElementById('gameLives').textContent=gameLives>0?'❤️'.repeat(gameLives):'💀';document.getElementById('gameWave').textContent=gameWave;document.getElementById('gameCombo').textContent='x'+gameCombo;}
+function spawnEnemy(){
+  if(bossActive)return;
+  const types=[{emoji:'👾',hp:1,points:10,color:'#ff3b5c',r:18,speed:1},{emoji:'🦠',hp:2,points:20,color:'#00e676',r:16,speed:0.7},{emoji:'🐛',hp:1,points:5,color:'#ffc400',r:15,speed:1.4},{emoji:'☠️',hp:3,points:50,color:'#ff3b5c',r:22,speed:0.5},{emoji:'🤖',hp:2,points:30,color:'#7c4dff',r:19,speed:0.8}];
+  const maxType=Math.min(types.length,2+Math.floor(gameWave/2));
+  const t=types[Math.floor(Math.random()*maxType)];
+  gameEnemies.push({x:30+Math.random()*(canvasW-60),y:-30,vy:t.speed*enemySpeed,vx:(Math.random()-0.5)*1.5,hp:t.hp,maxHp:t.hp,points:t.points,color:t.color,r:t.r,emoji:t.emoji,wobble:Math.random()*6.28,alive:true});
+}
+function spawnBoss(){
+  bossActive=true;
+  gameEnemies.push({x:canvasW/2-30,y:-40,vy:0.3,vx:0,hp:15,maxHp:15,points:200,color:'#ff3b5c',r:35,emoji:'👹',wobble:0,alive:true,boss:true});
+  showToast('👹 BOSS GELDİ! — Büyük tehdit!');
+  vibrate([100,50,100,50,300]);
+}
+function spawnPowerup(){
+  const types=[{type:'shield',emoji:'🛡️',color:'#00e5ff'},{type:'rapid',emoji:'⚡',color:'#ffc400'},{type:'life',emoji:'❤️',color:'#ff3b5c'},{type:'multi',emoji:'✨',color:'#7c4dff'}];
+  const t=types[Math.floor(Math.random()*types.length)];
+  gamePowerups.push({x:30+Math.random()*(canvasW-60),y:-20,vy:1,...t,alive:true,wobble:0});
+}
+function spawnParticles(x,y,color,count){for(let i=0;i<count;i++)gameParticles.push({x,y,vx:(Math.random()-0.5)*6,vy:(Math.random()-0.5)*6,r:Math.random()*3+1,color,life:1,decay:0.02+Math.random()*0.02});}
+function gameLoop(){
+  if(!gameRunning)return;
+  ctx.clearRect(0,0,canvasW,canvasH);
+  ctx.fillStyle='rgba(255,255,255,0.15)';
+  for(let i=0;i<30;i++){const sx=(i*37+Date.now()*0.02)%canvasW,sy=(i*53+Date.now()*0.05)%canvasH;ctx.fillRect(sx,sy,1.5,1.5);}
+  ctx.strokeStyle='rgba(0,229,255,0.04)';ctx.lineWidth=1;
+  for(let y=0;y<canvasH;y+=25){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(canvasW,y);ctx.stroke();}
+  spawnTimer++;
+  const spawnRate=Math.max(30,70-gameWave*5);
+  if(spawnTimer>=spawnRate){spawnTimer=0;spawnEnemy();}
+  if(Math.random()<0.003)spawnPowerup();
+  if(gameWave%5===0&&!bossActive&&waveTimer>480){spawnBoss();}
+  waveTimer++;
+  if(waveTimer>500){waveTimer=0;if(!bossActive){gameWave++;enemySpeed+=0.15;updateHUD();showToast('DALGA '+gameWave+' — Dikkat!');}}
+  gameComboTimer++;
+  if(gameComboTimer>150&&gameCombo>1){gameCombo=1;updateHUD();}
+  if(touchX>=0){gamePlayer.x+=(touchX-gamePlayer.w/2-gamePlayer.x)*0.2;}
+  gamePlayer.x=Math.max(0,Math.min(canvasW-gamePlayer.w,gamePlayer.x));
+  gamePlayer.fireTimer++;
+  let fireRate=gamePlayer.fireRate;if(gamePlayer.hasRapid)fireRate=8;
+  if(gamePlayer.fireTimer>=fireRate){gamePlayer.fireTimer=0;
+    if(gamePlayer.hasMulti){gameBullets.push({x:gamePlayer.x+gamePlayer.w/2,y:gamePlayer.y,vy:-8,alive:true});gameBullets.push({x:gamePlayer.x+gamePlayer.w/2-12,y:gamePlayer.y+5,vy:-8,vx:-1,alive:true});gameBullets.push({x:gamePlayer.x+gamePlayer.w/2+12,y:gamePlayer.y+5,vy:-8,vx:1,alive:true});}
+    else gameBullets.push({x:gamePlayer.x+gamePlayer.w/2,y:gamePlayer.y,vy:-8,alive:true});
+    sfxShoot();
+  }
+  if(gamePlayer.hasShield){gamePlayer.shieldTimer--;if(gamePlayer.shieldTimer<=0)gamePlayer.hasShield=false;}
+  if(gamePlayer.hasRapid){gamePlayer.rapidTimer--;if(gamePlayer.rapidTimer<=0)gamePlayer.hasRapid=false;}
+  if(gamePlayer.hasMulti){gamePlayer.multiTimer--;if(gamePlayer.multiTimer<=0)gamePlayer.hasMulti=false;}
+  drawShip(gamePlayer.x,gamePlayer.y);
+  if(gamePlayer.hasShield){ctx.beginPath();ctx.arc(gamePlayer.x+gamePlayer.w/2,gamePlayer.y+gamePlayer.h/2,28,0,6.28);ctx.strokeStyle='#00e5ff';ctx.lineWidth=2;ctx.globalAlpha=0.5+Math.sin(Date.now()*0.01)*0.2;ctx.stroke();ctx.globalAlpha=1;}
+  gameBullets.forEach(b=>{if(!b.alive)return;b.y+=b.vy;if(b.vx)b.x+=b.vx;if(b.y<0)b.alive=false;ctx.beginPath();ctx.arc(b.x,b.y,3,0,6.28);ctx.fillStyle='#00e5ff';ctx.shadowBlur=8;ctx.shadowColor='#00e5ff';ctx.fill();ctx.shadowBlur=0;});
+  gameBullets=gameBullets.filter(b=>b.alive);
+  gameEnemies.forEach(e=>{
+    if(!e.alive)return;e.wobble+=0.05;e.y+=e.vy;e.x+=Math.sin(e.wobble)*e.vx;
+    if(e.x<e.r){e.x=e.r;e.vx*=-1;}if(e.x>canvasW-e.r){e.x=canvasW-e.r;e.vx*=-1;}
+    if(e.y>canvasH-10){e.alive=false;if(!gamePlayer.hasShield&&!e.boss){gameLives--;vibrate(300);sfxExplode();spawnParticles(e.x,e.y,'#ff3b5c',15);updateHUD();if(gameLives<=0){showToast('💀 Gemiler tükendi!');gameLives=0;updateHUD();}}}
+    ctx.beginPath();ctx.arc(e.x,e.y,e.r+3,0,6.28);ctx.fillStyle=e.color+'15';ctx.fill();
+    if(e.hp<e.maxHp){ctx.beginPath();ctx.arc(e.x,e.y,e.r+5,-1.57,-1.57+(e.hp/e.maxHp)*6.28);ctx.strokeStyle=e.color;ctx.lineWidth=2;ctx.stroke();}
+    ctx.font=e.r+'px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(e.emoji,e.x,e.y);
+  });
+  gameBullets.forEach(b=>{if(!b.alive)return;gameEnemies.forEach(e=>{if(!e.alive)return;const dx=b.x-e.x,dy=b.y-e.y;if(dx*dx+dy*dy<(e.r+3)*(e.r+3)){b.alive=false;e.hp--;sfxHit();spawnParticles(b.x,b.y,e.color,5);if(e.hp<=0){e.alive=false;gameScore+=e.points*gameCombo;gameCombo++;gameComboTimer=0;sfxExplode();spawnParticles(e.x,e.y,e.color,e.boss?40:20);if(e.boss){bossActive=false;gameAchievements.push('👹 Boss Yokedildi');showToast('🏆 BOSS YOKEDİLDİ! +200');}updateHUD();}}});});
+  gameEnemies=gameEnemies.filter(e=>e.alive);
+  gamePowerups.forEach(p=>{if(!p.alive)return;p.wobble+=0.08;p.y+=p.vy;p.x+=Math.sin(p.wobble)*1.5;if(p.y>canvasH)p.alive=false;ctx.font='18px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(p.emoji,p.x,p.y);
+    if(Math.abs(p.x-(gamePlayer.x+gamePlayer.w/2))<25&&Math.abs(p.y-(gamePlayer.y+gamePlayer.h/2))<25){p.alive=false;sfxPowerup();vibrate(50);
+      if(p.type==='shield'){gamePlayer.hasShield=true;gamePlayer.shieldTimer=600;showToast('🛡️ KALKAN!');}
+      if(p.type==='rapid'){gamePlayer.hasRapid=true;gamePlayer.rapidTimer=600;showToast('⚡ HIZLI ATEŞ!');}
+      if(p.type==='multi'){gamePlayer.hasMulti=true;gamePlayer.multiTimer=600;showToast('✨ ÜÇLÜ ATEŞ!');}
+      if(p.type==='life'){gameLives=Math.min(5,gameLives+1);showToast('❤️ +1 CAN!');}
+      updateHUD();
+    }
+  });
+  gamePowerups=gamePowerups.filter(p=>p.alive);
+  gameParticles.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=0.1;p.life-=p.decay;if(p.life>0){ctx.beginPath();ctx.arc(p.x,p.y,p.r*p.life,0,6.28);ctx.fillStyle=p.color;ctx.globalAlpha=p.life;ctx.fill();ctx.globalAlpha=1;}});
+  gameParticles=gameParticles.filter(p=>p.life>0);
+  gameLoopId=requestAnimationFrame(gameLoop);
+}
+function drawShip(x,y){
+  ctx.save();ctx.fillStyle='#1a3a5c';ctx.strokeStyle='#00e5ff';ctx.lineWidth=1.5;
+  ctx.beginPath();ctx.moveTo(x+18,y);ctx.lineTo(x+36,y+25);ctx.lineTo(x+28,y+30);ctx.lineTo(x+8,y+30);ctx.lineTo(x,y+25);ctx.closePath();ctx.fill();ctx.stroke();
+  ctx.beginPath();ctx.ellipse(x+18,y+10,6,8,0,0,6.28);ctx.fillStyle='#00e5ff';ctx.globalAlpha=0.6;ctx.fill();ctx.globalAlpha=1;
+  ctx.beginPath();ctx.arc(x+18,y+32,4+Math.sin(Date.now()*0.02)*2,0,6.28);ctx.fillStyle='#00e5ff';ctx.globalAlpha=0.4;ctx.fill();ctx.globalAlpha=1;ctx.restore();
+}
+gameCanvas.addEventListener('touchstart',e=>{e.preventDefault();initAudio();touchX=e.touches[0].clientX-gameCanvas.getBoundingClientRect().left;},{passive:false});
+gameCanvas.addEventListener('touchmove',e=>{e.preventDefault();touchX=e.touches[0].clientX-gameCanvas.getBoundingClientRect().left;},{passive:false});
+gameCanvas.addEventListener('touchend',e=>{e.preventDefault();touchX=-1;},{passive:false});
+gameCanvas.addEventListener('mousedown',e=>{initAudio();touchX=e.clientX-gameCanvas.getBoundingClientRect().left;});
+gameCanvas.addEventListener('mousemove',e=>{if(touchX>=0)touchX=e.clientX-gameCanvas.getBoundingClientRect().left;});
+gameCanvas.addEventListener('mouseup',()=>{touchX=-1;});
+gameCanvas.addEventListener('mouseleave',()=>{touchX=-1;});
+function stopGame(){gameRunning=false;if(gameLoopId)cancelAnimationFrame(gameLoopId);}
+
+// RESULTS
+const homeScreen=document.getElementById('homeScreen'),scanScreen=document.getElementById('scanScreen'),resultsScreen=document.getElementById('resultsScreen');
+const progressFill=document.getElementById('progressFill'),progressPercent=document.getElementById('progressPercent'),progressFiles=document.getElementById('progressFiles'),scanLog=document.getElementById('scanLog'),scanModeText=document.getElementById('scanModeText');
+const avatarWrapper=document.getElementById('avatarWrapper'),scoreRingFill=document.getElementById('scoreRingFill'),scoreVal=document.getElementById('scoreVal');
+
+function showResults(){
+  scanScreen.style.display='none';resultsScreen.style.display='block';
+  totalScans++;document.getElementById('statScans').textContent=totalScans;document.getElementById('statThreats').textContent=threatsFound.length;
+  securityScore=Math.max(20,100-threatsFound.length*15-threatsFound.filter(t=>t.severity==='high').length*10);
+  scoreVal.textContent=securityScore;
+  scoreRingFill.setAttribute('stroke-dashoffset',263.9*(1-securityScore/100));
+  scoreRingFill.style.stroke=securityScore>60?'#00e676':securityScore>30?'#ffc400':'#ff3b5c';
+  const tc=threatsFound.length,hc=threatsFound.filter(t=>t.severity==='high').length;
+  // Avatar mood
+  if(tc===0){avatarWrapper.classList.add('happy');}
+  // Achievements
+  let ach=[];
+  if(gameScore>200)ach.push('🏆 Skor Avcısı ('+gameScore+')');
+  if(gameWave>=3)ach.push('🌊 Dalga '+gameWave);
+  if(gameLives>=3)ach.push('❤️ Kusursuz');
+  if(gameCombo>=5)ach.push('🔥 Kombo Ustası');
+  ach=ach.concat(gameAchievements);
+  document.getElementById('achievementsRow').innerHTML=ach.map(a=>`<span class="achievement-badge">${a}</span>`).join('');
+
+  if(tc===0){
+    document.getElementById('resultsIcon').textContent='✅';document.getElementById('resultsIcon').className='results-icon safe';
+    document.getElementById('resultsTitle').textContent='SİSTEM GÜVENLİ';
+    document.getElementById('resultsSummary').textContent='Tarama tamamlandı.\nTehdit bulunamadı.\nSisteminiz temiz ve korunuyor.';
+    document.getElementById('resultsAction').textContent='';document.getElementById('btnRow').style.display='none';
+    document.getElementById('resultsDetail').innerHTML='<div style="text-align:center;color:var(--safe);font-weight:600;padding:10px;">✓ Tehdit tespit edilmedi</div>';
+  } else {
+    document.getElementById('resultsIcon').textContent='⚠️';document.getElementById('resultsIcon').className='results-icon danger';
+    document.getElementById('resultsTitle').textContent=tc+' TEHDİT BULUNDU';
+    let s='Tarama tamamlandı.\n'+tc+' tehdit tespit edildi';if(hc>0)s+=' ('+hc+' yüksek riskli)';s+='.Temizleme öneriliyor.';
+    document.getElementById('resultsSummary').textContent=s;
+    document.getElementById('resultsAction').textContent='TEHDİTLER TEMİZLENSİN Mİ?';
+    document.getElementById('btnRow').style.display='flex';
+    document.getElementById('resultsDetail').innerHTML=threatsFound.map(t=>{
+      const sc=t.severity==='high'?'high':t.severity==='med'?'med':'low';
+      const st=t.severity==='high'?'YÜKSEK':t.severity==='med'?'ORTA':'DÜŞÜK';
+      const ic=t.severity==='high'?'☠️':t.severity==='med'?'⚠️':'ℹ️';
+      return `<div class="threat-item"><div class="threat-icon ${sc}">${ic}</div><div><div class="threat-name">${t.name}</div><div class="threat-path">${t.path}</div></div><div class="threat-action">${st}</div></div>`;
+    }).join('');
+  }
+  // Save history
+  const histItem={date:new Date().toISOString(),mode:scanMode,threats:tc,cleaned:null,gameScore:gameScore,securityScore:securityScore};
+  scanHistory.unshift(histItem);if(scanHistory.length>10)scanHistory=scanHistory.slice(0,10);
+  localStorage.setItem('scanHistory',JSON.stringify(scanHistory));
+
+  window._lastScanData={date:new Date(),mode:scanMode,threats:threatsFound.map(t=>({...t})),filesScanned:Math.floor((scanProgress/100)*(scanMode==='DERİN'?84200:scanMode==='ÖZEL'?45000:24500)),duration:scanMode==='DERİN'?'~20s':scanMode==='ÖZEL'?'~16s':'~12s',gameScore,gameWave,securityScore,achievements:ach};
+}
+
+// CLEAN
+document.getElementById('cleanYesBtn').addEventListener('click',()=>{
+  document.getElementById('cleaningOverlay').classList.add('show');
+  document.getElementById('cleaningText').textContent='TEHDİTLER TEMİZLENİYOR…';sfxClean();
+  let step=0;const steps=['TEHDİTLER TEMİZLENİYOR…','KARANTİNAYA ALINIYOR…','SİSTEM DOSYALARI ONARILIYOR…','KAYIT DEFTERİ GÜNCELLENİYOR…','TEMİZLİK TAMAMLANDI ✓'];
+  const ci=setInterval(()=>{
+    step++;
+    if(step<steps.length){document.getElementById('cleaningText').textContent=steps[step];sfxClean();}
+    else{clearInterval(ci);setTimeout(()=>{
+      document.getElementById('cleaningOverlay').classList.remove('show');
+      // Add to quarantine
+      threatsFound.forEach(t=>quarantined.push({...t,quarantinedAt:new Date().toISOString()}));
+      localStorage.setItem('quarantined',JSON.stringify(quarantined));
+      threatsFound=[];document.getElementById('statThreats').textContent='0';
+      securityScore=95;scoreVal.textContent=securityScore;
+      scoreRingFill.setAttribute('stroke-dashoffset',263.9*(1-0.95));scoreRingFill.style.stroke='#00e676';
+      avatarWrapper.classList.add('happy');
+      document.getElementById('resultsIcon').textContent='✅';document.getElementById('resultsIcon').className='results-icon safe';
+      document.getElementById('resultsTitle').textContent='TEHDİTLER TEMİZLENDİ';
+      document.getElementById('resultsSummary').textContent='Tüm tehditler başarıyla temizlendi.\nSisteminiz artık güvenli.';
+      document.getElementById('resultsAction').textContent='';document.getElementById('btnRow').style.display='none';
+      document.getElementById('resultsDetail').innerHTML='<div style="text-align:center;color:var(--safe);font-weight:600;padding:10px;">✓ Tüm tehditler temizlendi<br>✓ Sistem korunuyor<br>✓ Güvenlik skoru: 95<br>✓ Karantinaya alındı</div>';
+      if(window._lastScanData){window._lastScanData.cleaned=true;window._lastScanData.cleanDate=new Date();window._lastScanData.securityScore=95;}
+      // Update history
+      if(scanHistory.length>0){scanHistory[0].cleaned=true;localStorage.setItem('scanHistory',JSON.stringify(scanHistory));}
+    },600);}
+  },700);
+});
+document.getElementById('cleanNoBtn').addEventListener('click',()=>{
+  if(window._lastScanData)window._lastScanData.cleaned=false;
+  document.getElementById('resultsAction').textContent='TEHDİTLER TEMİZLENMEDİ — DİKKATLİ OLUN';
+  document.getElementById('resultsAction').style.color='var(--warn)';
+  document.getElementById('btnRow').style.display='none';showToast('⚠ Tehditler temizlenmedi');
+  if(scanHistory.length>0){scanHistory[0].cleaned=false;localStorage.setItem('scanHistory',JSON.stringify(scanHistory));}
+});
+
+// DOWNLOAD
+document.getElementById('downloadBtn').addEventListener('click',()=>{
+  const data=window._lastScanData;if(!data)return;const d=data.date;
+  let r='';
+  r+='================================================\n';
+  r+='         SENTINEL GUARD — TARAMA RAPORU\n';
+  r+='================================================\n\n';
+  r+='Tarama Tarihi : '+d.toLocaleDateString('tr-TR')+'\n';
+  r+='Tarama Saati  : '+d.toLocaleTimeString('tr-TR')+'\n';
+  r+='Tarama Modu   : '+data.mode+' TARAMA\n';
+  r+='Süre          : '+data.duration+'\n';
+  r+='Taranan Dosya : '+data.filesScanned.toLocaleString('tr-TR')+'\n';
+  r+='Tespit Edilen : '+data.threats.length+' tehdit\n';
+  r+='Güvenlik Skoru: '+(data.securityScore||'—')+'/100\n';
+  r+='Oyun Puanı    : '+data.gameScore+' (Dalga '+(data.gameWave||1)+')\n';
+  if(data.achievements&&data.achievements.length)r+='Başarımlar    : '+data.achievements.join(', ')+'\n';
+  r+='\n------------------------------------------------\nTEHDİT DETAYLARI\n------------------------------------------------\n\n';
+  if(data.threats.length===0)r+='  Tehdit tespit edilmedi.\n\n';
+  else data.threats.forEach((t,i)=>{const sev=t.severity==='high'?'YÜKSEK RİSK':t.severity==='med'?'ORTA RİSK':'DÜŞÜK RİSK';
+    r+='  ['+(i+1)+'] '+t.name+'\n      Risk Seviyesi : '+sev+'\n      Dosya Yolu     : '+t.path+'\n      Durum          : '+(data.cleaned?'TEMİZLENDI ✓':data.cleaned===false?'TEMİZLENMEDİ ⚠':'BEKLEMEDE')+'\n\n';});
+  r+='------------------------------------------------\n';
+  if(data.cleaned)r+='DURUM: TÜM TEHDİTLER TEMİZLENDI — SİSTEM GÜVENLİ\n';
+  else if(data.cleaned===false)r+='DURUM: TEHDİTLER TEMİZLENMEDI — DİKKAT!\n';
+  else r+='DURUM: TEMİZLİK BEKLEMEDE\n';
+  r+='------------------------------------------------\n\nEngine: SENTINEL-CORE™ v4.3.0\nİmza Veritabanı: 4.2M tanım\nAI Heuristik: AKTİF\nSentinel Guard — Next-Gen Threat Protection\n================================================\n';
+  const blob=new Blob([r],{type:'text/plain;charset=utf-8'});const url=URL.createObjectURL(blob);const a=document.createElement('a');
+  a.href=url;a.download='SentinelGuard_Rapor_'+d.toISOString().slice(0,10)+'_'+d.toTimeString().slice(0,8).replace(/:/g,'')+'.txt';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);showToast('Rapor indirildi 📄');
+});
+
+// BACK
+document.getElementById('backHomeBtn').addEventListener('click',()=>{
+  resultsScreen.style.display='none';homeScreen.style.display='block';
+  document.getElementById('resultsAction').style.color='';
+  avatarWrapper.classList.remove('happy');
+  if(document.querySelector('.nav-tab.active').dataset.view!=='home'){
+    document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+    document.getElementById('tabHome').classList.add('active');
+  }
+});
+
+// HISTORY
+function renderHistory(){
+  const list=document.getElementById('historyList');
+  if(scanHistory.length===0){list.innerHTML='<div class="history-empty">Henüz tarama geçmişi yok.\nİlk taramanızı başlatın! 🛡️</div>';return;}
+  list.innerHTML=scanHistory.map(h=>{
+    const d=new Date(h.date);const safe=h.threats===0||(h.threats>0&&h.cleaned);
+    return `<div class="history-item">
+      <div class="history-top"><span class="history-date">${d.toLocaleDateString('tr-TR')} ${d.toLocaleTimeString('tr-TR').slice(0,5)}</span><span class="history-status ${safe?'safe':'danger'}">${h.threats===0?'TEMİZ':h.cleaned?'TEMİZLENDİ':'TEHDİT VAR'}</span></div>
+      <div class="history-info"><span>📊 ${h.mode}</span><span>⚠️ ${h.threats} tehdit</span><span>⭐ ${h.gameScore} puan</span><span>🛡️ ${h.securityScore}/100</span></div>
+    </div>`;
+  }).join('');
+}
+
+// QUARANTINE
+function renderQuarantine(){
+  const list=document.getElementById('quarantineList');
+  if(quarantined.length===0){list.innerHTML='<div class="history-empty">Karantina boş.\nTemizlenen tehditler burada görünür. 🔒</div>';return;}
+  list.innerHTML=quarantined.map((t,i)=>{
+    const d=new Date(t.quarantinedAt);const sc=t.severity==='high'?'high':t.severity==='med'?'med':'low';
+    const ic=t.severity==='high'?'☠️':t.severity==='med'?'⚠️':'ℹ️';
+    return `<div class="quarantine-item" style="display:flex;align-items:center;gap:8px;">
+      <div class="threat-icon ${sc}">${ic}</div>
+      <div style="flex:1;"><div class="threat-name">${t.name}</div><div class="threat-path">${t.path}</div><div style="font-size:9px;color:var(--text-dim);margin-top:2px;">🔒 Karantinaya alındı: ${d.toLocaleDateString('tr-TR')} ${d.toLocaleTimeString('tr-TR').slice(0,5)}</div></div>
+      <button onclick="deleteFromQuarantine(${i})" style="background:var(--danger);border:none;border-radius:6px;padding:6px 10px;color:#fff;font-size:10px;font-weight:700;cursor:pointer;">SİL</button>
+    </div>`;
+  }).join('');
+}
+function deleteFromQuarantine(i){quarantined.splice(i,1);localStorage.setItem('quarantined',JSON.stringify(quarantined));renderQuarantine();showToast('Karantina öğesi silindi 🗑️');}
+
+// SHAKE — head shake (NOT flip!)
+let shakeData={lastX:0,lastY:0,lastZ:0,lastShakeTime:0,threshold:14};
+let shakeCount=0,lastShakeEvent=0;
+function handleMotion(e){
+  const acc=e.accelerationIncludingGravity;if(!acc)return;
+  const x=acc.x||0,y=acc.y||0,z=acc.z||0;
+  if(Math.abs(x-shakeData.lastX)+Math.abs(y-shakeData.lastY)+Math.abs(z-shakeData.lastZ)>shakeData.threshold){
+    const now=Date.now();
+    if(now-shakeData.lastShakeTime>2000){shakeData.lastShakeTime=now;triggerDizzy();}
+  }
+  shakeData.lastX=x;shakeData.lastY=y;shakeData.lastZ=z;
+}
+function triggerDizzy(){
+  avatarWrapper.classList.add('shaking');
+  vibrate([100,50,100,50,200]);
+  const hint=document.getElementById('shakeHint');
+  const bubble=document.getElementById('speechBubble');
+  if(hint){hint.textContent='😵‍💫';hint.style.color='var(--warn)';hint.style.opacity='1';}
+  if(bubble){bubble.textContent='başımı döndürdün dostum dikkatli ol';bubble.classList.add('show');}
+  setTimeout(()=>{
+    avatarWrapper.classList.remove('shaking');
+    if(hint){hint.textContent='psst: telefonu salla 👀';hint.style.color='var(--text-dim)';hint.style.opacity='0.4';}
+    if(bubble)bubble.classList.remove('show');
+  },2200);
+}
+if(typeof DeviceMotionEvent!=='undefined'){
+  if(typeof DeviceMotionEvent.requestPermission==='function'){
+    document.body.addEventListener('touchstart',function req(){DeviceMotionEvent.requestPermission().then(r=>{if(r==='granted')window.addEventListener('devicemotion',handleMotion);}).catch(()=>{});document.body.removeEventListener('touchstart',req);},{once:true});
+  } else window.addEventListener('devicemotion',handleMotion);
+}
+document.addEventListener('mousemove',e=>{const now=Date.now();if(now-lastShakeEvent<40)return;lastShakeEvent=now;shakeCount++;if(shakeCount>10){if(now-shakeData.lastShakeTime>2000){shakeData.lastShakeTime=now;triggerDizzy();}shakeCount=0;}});
+let keyShake=0;
+document.addEventListener('keydown',e=>{if(e.key==='ArrowLeft'||e.key==='ArrowRight'||e.key===' '||e.key==='s'){keyShake++;if(keyShake>6){const now=Date.now();if(now-shakeData.lastShakeTime>2000){shakeData.lastShakeTime=now;triggerDizzy();}keyShake=0;}}});
+
+window.addEventListener('resize',()=>{if(gameRunning)initCanvas();});
+document.body.addEventListener('touchmove',e=>{if(e.target.tagName!=='CANVAS'&&e.target.id!=='scanLog')e.preventDefault();},{passive:false});
+</script>
+
+</body>
+</html>
